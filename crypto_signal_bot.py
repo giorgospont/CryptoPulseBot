@@ -64,3 +64,9 @@ if __name__ == "__main__":
     data = get_market_data(TOKENS)
     if data:
         analyze_and_send(data)
+        CryptoPulseBot/
+├── .github/
+│   └── workflows/
+│       └── crypto-bot.yml   ← это мы добавим
+├── crypto_signal_bot.py
+
