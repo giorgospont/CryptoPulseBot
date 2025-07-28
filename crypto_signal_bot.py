@@ -69,4 +69,15 @@ if __name__ == "__main__":
 │   └── workflows/
 │       └── crypto-bot.yml   ← это мы добавим
 ├── crypto_signal_bot.py
+import os
+import requests
+from telegram import Bot
+
+# Читаем токен и chat_id из переменных окружения
+TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+CHAT_ID = os.environ['CHAT_ID']
+
+bot = Bot(token=TELEGRAM_TOKEN)
+
+# Остальной код...
 
