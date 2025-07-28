@@ -1,13 +1,13 @@
-
+import os
 import requests
 from telegram import Bot
-import time
 
-# 🔐 Настройки
-TELEGRAM_TOKEN = '7903581351:AAG8oKUsMc_u7L3bKj8T4oJLbL4SfeSmGnc'
-CHAT_ID = '5723647968'
+# ✅ Получаем токен и chat_id из GitHub Secrets (через переменные окружения)
+TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+CHAT_ID = os.environ['CHAT_ID']
 bot = Bot(token=TELEGRAM_TOKEN)
 
+# ✅ Список токенов
 TOKENS = ['solana', 'avalanche-2', 'near', 'sui', 'jito', 'ethereum', 'bitcoin']
 
 def get_market_data(ids):
@@ -48,36 +48,4 @@ def analyze_and_send(data):
         change = coin['price_change_percentage_24h']
         volume = coin['total_volume']
         symbol = coin['symbol']
-        spark = coin.get('sparkline_in_7d', {}).get('price', [])
-
-        if change and change < -5 and volume > 20_000_000:
-            msg = f"📉 ALERT: {name} (${symbol.upper()})\n"
-            msg += f"Цена: ${price:.2f} | Изм: {change:.2f}% | Объём: ${volume:,.0f}\n"
-            if len(spark) >= 20:
-                rsi = calc_rsi(spark[-20:])
-                msg += f"📊 RSI: {rsi}\n"
-                if rsi and rsi < 30:
-                    msg += "🟢 RSI < 30 — возможный отскок\n"
-            bot.send_message(chat_id=CHAT_ID, text=msg)
-
-if __name__ == "__main__":
-    data = get_market_data(TOKENS)
-    if data:
-        analyze_and_send(data)
-        CryptoPulseBot/
-├── .github/
-│   └── workflows/
-│       └── crypto-bot.yml   ← это мы добавим
-├── crypto_signal_bot.py
-import os
-import requests
-from telegram import Bot
-
-# Читаем токен и chat_id из переменных окружения
-TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
-CHAT_ID = os.environ['CHAT_ID']
-
-bot = Bot(token=TELEGRAM_TOKEN)
-
-# Остальной код...
-
+        spark = coin.get('sparkline_in_7d', {}).get('price
