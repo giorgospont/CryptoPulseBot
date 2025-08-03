@@ -1,76 +1,98 @@
 import requests
-import pandas as pd
-import time
-import ta
+from telegram import Bot
+import datetime
 
-# ========== НАСТРОЙКИ ==========
+# 🔐 Настройки
 TOKEN = "7903581351:AAG8oKUsMc_u7L3bKj8T4oJLbL4SfeSmGnc"
 CHAT_ID = "5723647968"
+bot = Bot(token=TELEGRAM_TOKEN)
 
-COIN_ID = "bitcoin"  # Пример: 'bitcoin', 'ethereum', 'solana'
-INTERVAL = 'hourly'  # 'daily', 'hourly'
-LIMIT = 100          # Кол-во точек (до 90 для hourly, до 365 для daily)
-RSI_PERIOD = 14
+TOKENS = ['solana', 'avalanche-2', 'near', 'ethereum', 'bitcoin']
+SYMBOLS = {
+    'solana': 'SOLUSDT',
+    'avalanche-2': 'AVAXUSDT',
+    'near': 'NEARUSDT',
+    'ethereum': 'ETHUSDT',
+    'bitcoin': 'BTCUSDT'
+}
 
-# ========== ФУНКЦИИ ==========
-
-def send_signal(message):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    data = {"chat_id": CHAT_ID, "text": message}
-    requests.post(url, data=data)
-
-def fetch_ohlc(coin_id, interval, limit):
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+def get_market_data(ids):
+    url = 'https://api.coingecko.com/api/v3/coins/markets'
     params = {
-        "vs_currency": "usd",
-        "days": "7",
-        "interval": interval
+        'vs_currency': 'usd',
+        'ids': ','.join(ids),
+        'order': 'market_cap_desc',
+        'per_page': len(ids),
+        'page': 1,
+        'sparkline': True
     }
     try:
-        r = requests.get(url, params=params)
-        data = r.json()
-        prices = data.get("prices", [])[-limit:]
-        df = pd.DataFrame(prices, columns=["timestamp", "price"])
-        df["price"] = df["price"].astype(float)
-        return df
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            return response.json()
     except Exception as e:
-        send_signal(f"⚠️ Ошибка при загрузке данных: {e}")
-        return pd.DataFrame()
+        print("Ошибка API:", e)
+    return []
 
-def calculate_rsi(series, period):
-    try:
-        rsi = ta.momentum.RSIIndicator(close=series, window=period)
-        return rsi.rsi()
-    except Exception as e:
-        send_signal(f"⚠️ Ошибка при расчёте RSI: {e}")
-        return pd.Series()
+def calc_rsi(prices, period=14):
+    if len(prices) < period:
+        return None
+    deltas = [prices[i+1] - prices[i] for i in range(len(prices)-1)]
+    gains = [d if d > 0 else 0 for d in deltas]
+    losses = [-d if d < 0 else 0 for d in deltas]
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    if avg_loss == 0:
+        return 100
+    rs = avg_gain / avg_loss
+    return round(100 - (100 / (1 + rs)), 2)
 
-# ========== ОСНОВНОЙ ЦИКЛ ==========
+def analyze_and_format(data):
+    signal_lines = []
+    rsi_values = []
+    for idx, coin in enumerate(data, start=1):
+        name = coin['name']
+        symbol = SYMBOLS.get(coin['id'], coin['symbol'].upper() + 'USDT')
+        price = coin['current_price']
+        volume = coin['total_volume']
+        spark = coin.get('sparkline_in_7d', {}).get('price', [])
 
-def run_bot():
-    df = fetch_ohlc(COIN_ID, INTERVAL, LIMIT)
-    
-    if df.empty or len(df) < RSI_PERIOD:
-        send_signal("⚠️ Ошибка: недостаточно данных для анализа.")
-        return
+        if len(spark) < 20:
+            continue
 
-    df["rsi"] = calculate_rsi(df["price"], RSI_PERIOD)
-    
-    try:
-        last_price = df["price"].iloc[-1]
-        last_rsi = df["rsi"].iloc[-1]
+        rsi = calc_rsi(spark[-20:])
+        rsi_values.append(rsi if rsi is not None else 50)
 
-        if last_rsi < 30:
-            send_signal(f"📉 Сигнал на покупку {COIN_ID.upper()}\nЦена: ${last_price:.2f}\nRSI: {last_rsi:.2f}")
-        elif last_rsi > 70:
-            send_signal(f"📈 Сигнал на продажу {COIN_ID.upper()}\nЦена: ${last_price:.2f}\nRSI: {last_rsi:.2f}")
-        else:
-            send_signal(f"ℹ️ {COIN_ID.upper()} нейтрально\nЦена: ${last_price:.2f}\nRSI: {last_rsi:.2f}")
+        tp1 = round(price * 1.02, 2)
+        tp2 = round(price * 1.05, 2)
+        tp3 = round(price * 1.08, 2)
+        sl = round(price * 0.97, 2)
 
-    except IndexError:
-        send_signal("⚠️ Ошибка в боте: данные по RSI или цене не получены")
+        line = f"#{idx}. {symbol} — Вход: ${price:.2f}\n"
+        line += f"🎯 TP1: ${tp1} | TP2: ${tp2} | TP3: ${tp3}\n"
+        line += f"🛡 SL: ${sl} | 📊 RSI: {rsi} | 🔊 Объём: ${volume/1_000_000:.0f}M\n"
+        signal_lines.append(line)
 
-# ========== ЗАПУСК ==========
+    if not signal_lines:
+        return None
+
+    avg_rsi = sum(rsi_values) / len(rsi_values)
+    if avg_rsi > 60:
+        trend = "🟢 Рынок: бычий тренд"
+    elif avg_rsi < 40:
+        trend = "🔴 Рынок: медвежий тренд"
+    else:
+        trend = "⚪ Рынок: нейтральный"
+
+    timestamp = datetime.datetime.utcnow().strftime("%H:%M UTC")
+    message = f"{trend}\n\n" + "\n".join(signal_lines) + f"\n📅 Время: {timestamp}"
+    return message
+
 if __name__ == "__main__":
-    run_bot()
+    data = get_market_data(TOKENS)
+    if data:
+        msg = analyze_and_format(data)
+        if msg:
+            bot.send_message(chat_id=CHAT_ID, text=msg)
+
 
