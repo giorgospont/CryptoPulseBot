@@ -4,14 +4,21 @@ import time
 import ta
 
 # ========== НАСТРОЙКИ ==========
-TOKEN = "7903581351:AAG8oKUsMc_u7L3bKj8T4oJLbL4SfeSmGnc"
-CHAT_ID = "5723647968"
-COIN_ID = "bitcoin"  # можно заменить на 'ethereum', 'solana' и т.д.
-INTERVAL = '1h'  # '1h', '4h', '1d' — период свечей
-LIMIT = 100  # количество свечей для расчёта RSI
-RSI_PERIOD = 14  # период RSI
+TOKEN = "ВАШ_TG_TOKEN"
+CHAT_ID = "ВАШ_CHAT_ID"
+
+COIN_ID = "bitcoin"  # Пример: 'bitcoin', 'ethereum', 'solana'
+INTERVAL = 'hourly'  # 'daily', 'hourly'
+LIMIT = 100          # Кол-во точек (до 90 для hourly, до 365 для daily)
+RSI_PERIOD = 14
 
 # ========== ФУНКЦИИ ==========
+
+def send_signal(message):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": message}
+    requests.post(url, data=data)
+
 def fetch_ohlc(coin_id, interval, limit):
     url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
     params = {
@@ -19,43 +26,51 @@ def fetch_ohlc(coin_id, interval, limit):
         "days": "7",
         "interval": interval
     }
-    r = requests.get(url, params=params)
-    data = r.json()
-    prices = data.get("prices", [])[-limit:]
+    try:
+        r = requests.get(url, params=params)
+        data = r.json()
+        prices = data.get("prices", [])[-limit:]
+        df = pd.DataFrame(prices, columns=["timestamp", "price"])
+        df["price"] = df["price"].astype(float)
+        return df
+    except Exception as e:
+        send_signal(f"⚠️ Ошибка при загрузке данных: {e}")
+        return pd.DataFrame()
 
-    df = pd.DataFrame(prices, columns=["timestamp", "price"])
-    df["price"] = df["price"].astype(float)
-    return df
-
-def calculate_rsi(df):
-    df["rsi"] = ta.momentum.RSIIndicator(close=df["price"], window=RSI_PERIOD).rsi()
-    return df
-
-def send_signal(message):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML"
-    }
-    requests.post(url, data=payload)
+def calculate_rsi(series, period):
+    try:
+        rsi = ta.momentum.RSIIndicator(close=series, window=period)
+        return rsi.rsi()
+    except Exception as e:
+        send_signal(f"⚠️ Ошибка при расчёте RSI: {e}")
+        return pd.Series()
 
 # ========== ОСНОВНОЙ ЦИКЛ ==========
-try:
+
+def run_bot():
     df = fetch_ohlc(COIN_ID, INTERVAL, LIMIT)
-    df = calculate_rsi(df)
+    
+    if df.empty or len(df) < RSI_PERIOD:
+        send_signal("⚠️ Ошибка: недостаточно данных для анализа.")
+        return
 
-    last_price = df["price"].iloc[-1]
-    last_rsi = df["rsi"].iloc[-1]
+    df["rsi"] = calculate_rsi(df["price"], RSI_PERIOD)
+    
+    try:
+        last_price = df["price"].iloc[-1]
+        last_rsi = df["rsi"].iloc[-1]
 
-    print(f"🔍 {COIN_ID.upper()} | Цена: {last_price:.2f} USD | RSI: {last_rsi:.2f}")
+        if last_rsi < 30:
+            send_signal(f"📉 Сигнал на покупку {COIN_ID.upper()}\nЦена: ${last_price:.2f}\nRSI: {last_rsi:.2f}")
+        elif last_rsi > 70:
+            send_signal(f"📈 Сигнал на продажу {COIN_ID.upper()}\nЦена: ${last_price:.2f}\nRSI: {last_rsi:.2f}")
+        else:
+            send_signal(f"ℹ️ {COIN_ID.upper()} нейтрально\nЦена: ${last_price:.2f}\nRSI: {last_rsi:.2f}")
 
-    if last_rsi > 70:
-        send_signal(f"🔴 <b>{COIN_ID.upper()} RSI > 70</b>\nЦена: {last_price:.2f} USD\nВозможен шорт 📉")
-    elif last_rsi < 30:
-        send_signal(f"🟢 <b>{COIN_ID.upper()} RSI < 30</b>\nЦена: {last_price:.2f} USD\nВозможен лонг 📈")
-except Exception as e:
-    send_signal(f"⚠️ Ошибка в боте: {e}")
-    print("Ошибка:", e)
-bot.send_message(chat_id=chat_id, text="✅ Тестовое сообщение: бот отработал.")
+    except IndexError:
+        send_signal("⚠️ Ошибка в боте: данные по RSI или цене не получены")
+
+# ========== ЗАПУСК ==========
+if __name__ == "__main__":
+    run_bot()
 
