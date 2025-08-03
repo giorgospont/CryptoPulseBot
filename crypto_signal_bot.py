@@ -3,8 +3,8 @@ from telegram import Bot
 import datetime
 
 # 🔐 Настройки
-TOKEN = "7903581351:AAG8oKUsMc_u7L3bKj8T4oJLbL4SfeSmGnc"
-CHAT_ID = "5723647968"
+TELEGRAM_TOKEN = '7903581351:AAG8oKUsMc_u7L3bKj8T4oJL-bL4SfeSmGnc'
+CHAT_ID = '5723647968'
 bot = Bot(token=TELEGRAM_TOKEN)
 
 TOKENS = ['solana', 'avalanche-2', 'near', 'ethereum', 'bitcoin']
@@ -94,5 +94,6 @@ if __name__ == "__main__":
         msg = analyze_and_format(data)
         if msg:
             bot.send_message(chat_id=CHAT_ID, text=msg)
+
 
 
