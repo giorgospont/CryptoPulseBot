@@ -2,7 +2,7 @@ name: Run Crypto Signal Bot every 15 min
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # каждый 15 минут
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
