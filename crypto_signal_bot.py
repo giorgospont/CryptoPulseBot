@@ -99,8 +99,11 @@ if __name__ == "__main__":
 def send_signal(message):
     from telegram import Bot
     bot = Bot(token=TELEGRAM_TOKEN)
-    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    bot.send_message(chat_id=CHAT_ID, text=message)
+
+# ⬇ Вызов функции (можно оставить внизу)
 send_signal("✅ Бот успешно настроен и готов к работе.")
+
 
 
 
