@@ -49,3 +49,5 @@ def analyze_and_send(data):
         volume = coin['total_volume']
         symbol = coin['symbol']
         spark = coin.get('sparkline_in_7d', {}).get('price
+         bot.send_message(chat_id=CHAT_ID, text="✅ Тест: Бот успешно запущен из GitHub Actions!")
+                                           
