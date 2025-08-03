@@ -57,4 +57,5 @@ try:
 except Exception as e:
     send_signal(f"⚠️ Ошибка в боте: {e}")
     print("Ошибка:", e)
+bot.send_message(chat_id=chat_id, text="✅ Тестовое сообщение: бот отработал.")
 
