@@ -7,6 +7,7 @@ TELEGRAM_TOKEN = '7903581351:AAG8oKUsMc_u7L3bKj8T4oJL-bL4SfeSmGnc'
 CHAT_ID = '5723647968'
 bot = Bot(token=TELEGRAM_TOKEN)
 
+# 🔍 Список токенов CoinGecko
 TOKENS = ['solana', 'avalanche-2', 'near', 'ethereum', 'bitcoin']
 SYMBOLS = {
     'solana': 'SOLUSDT',
@@ -16,6 +17,7 @@ SYMBOLS = {
     'bitcoin': 'BTCUSDT'
 }
 
+# 📡 Получение данных с CoinGecko
 def get_market_data(ids):
     url = 'https://api.coingecko.com/api/v3/coins/markets'
     params = {
@@ -34,6 +36,7 @@ def get_market_data(ids):
         print("Ошибка API:", e)
     return []
 
+# 📈 RSI
 def calc_rsi(prices, period=14):
     if len(prices) < period:
         return None
@@ -47,9 +50,11 @@ def calc_rsi(prices, period=14):
     rs = avg_gain / avg_loss
     return round(100 - (100 / (1 + rs)), 2)
 
+# 📤 Генерация сигнала
 def analyze_and_format(data):
     signal_lines = []
     rsi_values = []
+
     for idx, coin in enumerate(data, start=1):
         name = coin['name']
         symbol = SYMBOLS.get(coin['id'], coin['symbol'].upper() + 'USDT')
@@ -88,21 +93,13 @@ def analyze_and_format(data):
     message = f"{trend}\n\n" + "\n".join(signal_lines) + f"\n📅 Время: {timestamp}"
     return message
 
+# 🧠 Главная функция
 if __name__ == "__main__":
     data = get_market_data(TOKENS)
     if data:
         msg = analyze_and_format(data)
         if msg:
             bot.send_message(chat_id=CHAT_ID, text=msg)
-
-# Функция отправки сообщения в Telegram
-def send_signal(message):
-    from telegram import Bot
-    bot = Bot(token=TELEGRAM_TOKEN)
-    bot.send_message(chat_id=CHAT_ID, text=message)
-
-# ⬇ Вызов функции (можно оставить внизу)
-send_signal("✅ Бот успешно настроен и готов к работе.")
 
 
 
