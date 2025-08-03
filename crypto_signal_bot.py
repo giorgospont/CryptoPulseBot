@@ -1,51 +1,59 @@
-import os
 import requests
-from telegram import Bot
+import pandas as pd
+import time
+import ta
 
-# ✅ Получаем токен и chat_id из GitHub Secrets (через переменные окружения)
-TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
-CHAT_ID = os.environ['CHAT_ID']
-bot = Bot(token=TELEGRAM_TOKEN)
+# ========== НАСТРОЙКИ ==========
+TOKEN = "ВАШ_TG_ТОКЕН"
+CHAT_ID = "ВАШ_CHAT_ID"
+COIN_ID = "bitcoin"  # можно заменить на 'ethereum', 'solana' и т.д.
+INTERVAL = '1h'  # '1h', '4h', '1d' — период свечей
+LIMIT = 100  # количество свечей для расчёта RSI
+RSI_PERIOD = 14  # период RSI
 
-# ✅ Список токенов
-TOKENS = ['solana', 'avalanche-2', 'near', 'sui', 'jito', 'ethereum', 'bitcoin']
-
-def get_market_data(ids):
-    url = 'https://api.coingecko.com/api/v3/coins/markets'
+# ========== ФУНКЦИИ ==========
+def fetch_ohlc(coin_id, interval, limit):
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
     params = {
-        'vs_currency': 'usd',
-        'ids': ','.join(ids),
-        'order': 'market_cap_desc',
-        'per_page': len(ids),
-        'page': 1,
-        'sparkline': True
+        "vs_currency": "usd",
+        "days": "7",
+        "interval": interval
     }
-    try:
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
-            return response.json()
-    except Exception as e:
-        print("Ошибка API:", e)
-    return []
+    r = requests.get(url, params=params)
+    data = r.json()
+    prices = data.get("prices", [])[-limit:]
 
-def calc_rsi(prices, period=14):
-    if len(prices) < period:
-        return None
-    deltas = [prices[i+1] - prices[i] for i in range(len(prices)-1)]
-    gains = [d if d > 0 else 0 for d in deltas]
-    losses = [-d if d < 0 else 0 for d in deltas]
-    avg_gain = sum(gains[:period]) / period
-    avg_loss = sum(losses[:period]) / period
-    if avg_loss == 0:
-        return 100
-    rs = avg_gain / avg_loss
-    return round(100 - (100 / (1 + rs)), 2)
+    df = pd.DataFrame(prices, columns=["timestamp", "price"])
+    df["price"] = df["price"].astype(float)
+    return df
 
-def analyze_and_send(data):
-    for coin in data:
-        name = coin['name']
-        price = coin['current_price']
-        change = coin['price_change_percentage_24h']
-        volume = coin['total_volume']
-        symbol = coin['symbol']
-        spark = coin.get('sparkline_in_7d', {}).get('price
+def calculate_rsi(df):
+    df["rsi"] = ta.momentum.RSIIndicator(close=df["price"], window=RSI_PERIOD).rsi()
+    return df
+
+def send_signal(message):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    requests.post(url, data=payload)
+
+# ========== ОСНОВНОЙ ЦИКЛ ==========
+try:
+    df = fetch_ohlc(COIN_ID, INTERVAL, LIMIT)
+    df = calculate_rsi(df)
+
+    last_price = df["price"].iloc[-1]
+    last_rsi = df["rsi"].iloc[-1]
+
+    print(f"🔍 {COIN_ID.upper()} | Цена: {last_price:.2f} USD | RSI: {last_rsi:.2f}")
+
+    if last_rsi > 70:
+        send_signal(f"🔴 <b>{COIN_ID.upper()} RSI > 70</b>\nЦена: {last_price:.2f} USD\nВозможен шорт 📉")
+    elif last_rsi < 30:
+        send_signal(f"🟢 <b>{COIN_ID.upper()} RSI < 30</b>\nЦена: {last_price:.2f} USD\nВозможен лонг 📈")
+except Exception as e:
+    send_signal(f"⚠️ Ошибка в боте: {e}")
+    print("Ошибка:", e)
