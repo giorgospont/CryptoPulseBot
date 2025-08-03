@@ -95,6 +95,7 @@ if __name__ == "__main__":
         if msg:
             bot.send_message(chat_id=CHAT_ID, text=msg)
 
-send_message("✅ Бот успешно настроен и готов к работе.")
+send_signal("✅ Бот успешно настроен и готов к работе.")
+
 
 
