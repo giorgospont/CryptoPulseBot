@@ -4,8 +4,8 @@ import time
 import ta
 
 # ========== НАСТРОЙКИ ==========
-TOKEN = "ВАШ_TG_ТОКЕН"
-CHAT_ID = "ВАШ_CHAT_ID"
+TOKEN = "7903581351:AAG8oKUsMc_u7L3bKj8T4oJLbL4SfeSmGnc"
+CHAT_ID = "5723647968"
 COIN_ID = "bitcoin"  # можно заменить на 'ethereum', 'solana' и т.д.
 INTERVAL = '1h'  # '1h', '4h', '1d' — период свечей
 LIMIT = 100  # количество свечей для расчёта RSI
