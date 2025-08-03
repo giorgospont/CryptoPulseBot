@@ -57,3 +57,4 @@ try:
 except Exception as e:
     send_signal(f"⚠️ Ошибка в боте: {e}")
     print("Ошибка:", e)
+
