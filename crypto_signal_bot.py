@@ -50,4 +50,12 @@ def analyze_and_send(data):
         symbol = coin['symbol']
         spark = coin.get('sparkline_in_7d', {}).get('price
          bot.send_message(chat_id=CHAT_ID, text="✅ Тест: Бот успешно запущен из GitHub Actions!")
+                                                    if __name__ == "__main__":
+    data = get_market_data(TOKENS)
+    if data:
+        analyze_and_send(data)
+
+    # ТЕСТОВОЕ СООБЩЕНИЕ ДЛЯ ПРОВЕРКИ
+    bot.send_message(chat_id=CHAT_ID, text="✅ Тест: Бот успешно запущен из GitHub Actions!")
+
                                            
