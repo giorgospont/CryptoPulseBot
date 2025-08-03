@@ -48,14 +48,20 @@ def analyze_and_send(data):
         change = coin['price_change_percentage_24h']
         volume = coin['total_volume']
         symbol = coin['symbol']
-        spark = coin.get('sparkline_in_7d', {}).get('price
-         bot.send_message(chat_id=CHAT_ID, text="✅ Тест: Бот успешно запущен из GitHub Actions!")
-                                                    if __name__ == "__main__":
+        spark = coin.get('sparkline_in_7d', {}).get('price', [])
+
+        # Пример сигнала (можно настроить по логике)
+        if change < -5 and volume > 20_000_000:
+            msg = f"📉 {name} ({symbol.upper()}) упал на {change:.2f}% | Объём: ${volume:,}"
+            bot.send_message(chat_id=CHAT_ID, text=msg)
+
+# ✅ Главный блок
+if __name__ == "__main__":
     data = get_market_data(TOKENS)
     if data:
         analyze_and_send(data)
 
-    # ТЕСТОВОЕ СООБЩЕНИЕ ДЛЯ ПРОВЕРКИ
+    # ✅ Тестовое сообщение
     bot.send_message(chat_id=CHAT_ID, text="✅ Тест: Бот успешно запущен из GitHub Actions!")
 
                                            
