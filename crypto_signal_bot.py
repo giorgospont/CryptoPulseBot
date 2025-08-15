@@ -2,7 +2,7 @@ import requests
 from telegram import Bot
 import datetime
 
-# 🔐 Настройки
+# Настройки
 TELEGRAM_TOKEN = '8410463314:AAE926vorMsW-ubJC7sj0of8t_8ALUW2FJ8'
 CHAT_ID = '5723647968'
 bot = Bot(token=TELEGRAM_TOKEN)
@@ -50,33 +50,26 @@ def calc_rsi(prices, period=14):
 def analyze_and_format(data):
     signal_lines = []
     rsi_values = []
-
     for idx, coin in enumerate(data, start=1):
         name = coin['name']
         symbol = SYMBOLS.get(coin['id'], coin['symbol'].upper() + 'USDT')
         price = coin['current_price']
         volume = coin['total_volume']
         spark = coin.get('sparkline_in_7d', {}).get('price', [])
-
         if len(spark) < 20:
             continue
-
         rsi = calc_rsi(spark[-20:])
         rsi_values.append(rsi if rsi is not None else 50)
-
         tp1 = round(price * 1.02, 2)
         tp2 = round(price * 1.05, 2)
         tp3 = round(price * 1.08, 2)
         sl = round(price * 0.97, 2)
-
         line = f"#{idx}. {symbol} — Вход: ${price:.2f}\n"
-        line += f"🎯 TP1: ${tp1} | TP2: ${tp2} | TP3: ${tp3}\n"
-        line += f"🛡 SL: ${sl} | 📊 RSI: {rsi} | 🔊 Объём: ${volume/1_000_000:.0f}M\n"
+        line += f" TP1: ${tp1} | TP2: ${tp2} | TP3: ${tp3}\n"
+        line += f" SL: ${sl} |  RSI: {rsi} |  Объем: ${volume/1_000_000:.0f}M\n"
         signal_lines.append(line)
-
     if not signal_lines:
         return None
-
     avg_rsi = sum(rsi_values) / len(rsi_values)
     if avg_rsi > 60:
         trend = "🟢 Рынок: бычий тренд"
@@ -84,9 +77,8 @@ def analyze_and_format(data):
         trend = "🔴 Рынок: медвежий тренд"
     else:
         trend = "⚪ Рынок: нейтральный"
-
     timestamp = datetime.datetime.utcnow().strftime("%H:%M UTC")
-    message = f"{trend}\n\n" + "\n".join(signal_lines) + f"\n📅 Время: {timestamp}"
+    message = f"{trend}\n\n" + "\n".join(signal_lines) + f"\n Время: {timestamp}"
     return message
 
 def send_signal(message):
@@ -98,15 +90,13 @@ def send_signal(message):
 
 if __name__ == "__main__":
     try:
-        send_signal("✅ Бот Crypto_Gio_bot успешно запущен и готов к работе.")
         data = get_market_data(TOKENS)
         if data:
             msg = analyze_and_format(data)
             if msg:
                 send_signal(msg)
-            else:
-                send_signal("⚠️ Нет подходящих сигналов на текущий момент.")
+            # Do not send a message if there are no suitable signals
         else:
-            send_signal("❌ Ошибка: не удалось получить данные с CoinGecko.")
+         send_signal("❌ Ошибка: не удалось получить данные с CoinGecko.")
     except Exception as e:
         print("❌ Ошибка в основной логике:", e)
